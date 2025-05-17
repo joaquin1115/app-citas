@@ -38,9 +38,52 @@ const MedicalServices: React.FC = () => {
   const [showMedicalRecord, setShowMedicalRecord] = useState(false);
   const [isAttentionComplete, setIsAttentionComplete] = useState(false);
 
+  // Define the appointments array with sample data
+  const appointments = [
+    {
+      id: '1',
+      patientName: 'Juan Pérez',
+      reason: 'Consulta General',
+      date: '2025-05-15',
+      time: '09:00'
+    },
+    {
+      id: '2',
+      patientName: 'María García',
+      reason: 'Control Mensual',
+      date: '2025-05-15',
+      time: '10:30'
+    },
+    {
+      id: '3',
+      patientName: 'Carlos Rodríguez',
+      reason: 'Evaluación Cardiológica',
+      date: '2025-05-15',
+      time: '11:45'
+    }
+  ];
+
   const handleCompleteAttention = () => {
     setIsAttentionComplete(true);
     setSelectedAppointment(null);
+  };
+
+  const handleSaveOrder = () => {
+    // Implementation pending
+    setShowOrderForm(false);
+    setOrderType(null);
+  };
+
+  const handleSaveAttention = () => {
+    // Implementation pending
+    setShowAttentionForm(false);
+    setAttentionType(null);
+    setTreatmentType(null);
+  };
+
+  const renderAttentionForm = () => {
+    // Implementation pending
+    return null;
   };
 
   return (
