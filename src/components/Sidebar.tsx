@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
       title: 'Historias Clínicas',
       path: '/medical-records',
       icon: <FileText size={20} />,
-      roles: ['patient', 'admin', 'medical']
+      roles: ['patient', 'admin']
     },
     {
       title: 'Citas Médicas',
@@ -122,4 +122,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   );
 };
 
-export default Sidebar
+export default Sidebar;
