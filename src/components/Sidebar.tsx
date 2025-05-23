@@ -35,7 +35,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
       title: 'Historias Clínicas',
       path: '/medical-records',
       icon: <FileText size={20} />,
-      roles: ['patient', 'admin']
+      roles: ['patient', 'admin', 'medical']
     },
     {
       title: 'Citas Médicas',
@@ -72,7 +72,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
               <img
                 src="/images/logo.png"
                 alt="EsSalud"
-                className="w-full h-auto"
+                className="w-full h-auto cursor-pointer transition-transform duration-300 ease-in-out hover:scale-125"
               />
             </div>
             {isOpen && <span className="ml-2 -mt-1 text-2xl font-bold text-white">EsSalud</span>}
@@ -122,4 +122,4 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen }) => {
   );
 };
 
-export default Sidebar;
+export default Sidebar
