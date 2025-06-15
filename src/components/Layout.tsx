@@ -14,8 +14,8 @@ import FaceLoginPage from '../pages/FaceLoginPage';
 import RegisterFacePage from '../pages/RegisterFacePage';
 
 const Layout = () => {
-    const {isAuthenticated } = useUser();
-    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const { isAuthenticated } = useUser();
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     if (!isAuthenticated) {
         return <Login />;
@@ -24,7 +24,9 @@ const Layout = () => {
     return (
         <div className="flex h-screen bg-gray-100">
             <Sidebar isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
-            <div className={`flex flex-col flex-1 overflow-hidden transition-all duration-300 ${isSidebarOpen ? 'md:ml-64' : 'md:ml-16'}`}>
+            
+            {/* Contenido principal */}
+            <div className="flex flex-col flex-1 overflow-hidden md:ml-64">
                 <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
                 <main className="bg-essalud-totalBG flex-1 overflow-y-auto p-4 md:p-6">
                     <Routes>
