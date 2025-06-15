@@ -80,21 +80,25 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       )}
 
       {/* Sidebar */}
-      <aside className={`fixed inset-y-0 left-0 z-30 transform transition-transform duration-300 ease-in-out bg-essalud-darkblue border-gray-200 ${
-        isOpen ? 'translate-x-0' : '-translate-x-full'
-      } w-64 md:translate-x-0 md:static md:inset-0`}>
+      <aside className={`
+        fixed inset-y-0 left-0 z-30 transform transition-all duration-300 ease-in-out bg-essalud-darkblue border-gray-200
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        w-64
+        md:static md:inset-0 md:translate-x-0
+        ${isOpen ? 'md:w-64' : 'md:w-16'}
+      `}>
         <div className="h-full flex flex-col">
           {/* Header con logo y botón cerrar en móviles */}
           <div className="flex items-center justify-between h-16 px-4">
-            <Link to="/" className="flex items-center" onClick={handleLinkClick}>
-              <div className="flex-shrink-0 w-7">
+            <Link to="/" className={`flex items-center ${!isOpen && 'md:justify-center'}`} onClick={handleLinkClick}>
+              <div className={`flex-shrink-0 ${isOpen ? 'w-7' : 'w-8'}`}>
                 <img
                   src="/images/logo.png"
                   alt="EsSalud"
                   className="w-full h-auto cursor-pointer transition-transform duration-300 ease-in-out hover:scale-125"
                 />
               </div>
-              <span className="ml-2 -mt-1 text-2xl font-bold text-white">EsSalud</span>
+              {isOpen && <span className="ml-2 -mt-1 text-2xl font-bold text-white">EsSalud</span>}
             </Link>
             
             {/* Botón cerrar solo en móviles */}
@@ -119,11 +123,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
                         ? 'bg-essalud-blue text-essalud-orange'
                         : 'text-white hover:bg-essalud-hoverBlue'
                     }`}
+                    title={!isOpen ? item.title : undefined}
                   >
                     <span className={isActive(item.path) ? 'text-essalud-orange' : 'text-white'}>
                       {item.icon}
                     </span>
-                    <span className="ml-3">{item.title}</span>
+                    {isOpen && <span className="ml-3">{item.title}</span>}
                   </Link>
                 </li>
               ))}
@@ -131,19 +136,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           </nav>
 
           {/* Perfil de usuario */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center">
-              <img
-                src={user.avatarUrl || "https://i.pravatar.cc/150?img=1"}
-                alt={user.name}
-                className="h-8 w-8 rounded-full"
-              />
-              <div className="ml-3">
-                <p className="text-sm font-medium text-white truncate">{user.name}</p>
-                <p className="text-xs text-gray-300 truncate">{user.email}</p>
+          {isOpen && (
+            <div className="p-4 border-t border-gray-200">
+              <div className="flex items-center">
+                <img
+                  src={user.avatarUrl || "https://i.pravatar.cc/150?img=1"}
+                  alt={user.name}
+                  className="h-8 w-8 rounded-full"
+                />
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-white truncate">{user.name}</p>
+                  <p className="text-xs text-gray-300 truncate">{user.email}</p>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       </aside>
     </>

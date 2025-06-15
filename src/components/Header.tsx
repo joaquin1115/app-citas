@@ -63,10 +63,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   return (
     <header className="bg-essalud-light border-b border-gray-200 z-10 shadow-sm">
       <div className="flex justify-between items-center px-4 py-3">
-        {/* Botón de menú hamburguesa */}
+        {/* Botón de menú hamburguesa - ahora visible en todas las pantallas */}
         <button 
           onClick={onMenuClick}
-          className="p-2 rounded-full hover:bg-gray-100 md:hidden"
+          className="p-2 rounded-full hover:bg-gray-100"
         >
           <Menu size={24} color="#003B5C"/>
         </button>
