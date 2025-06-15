@@ -1,4 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 // Define user role types
 export type UserRole = 'patient' | 'admin' | 'medical';
@@ -8,17 +9,6 @@ export interface UserProfile {
   id: string;
   name: string;
   isCurrentUser: boolean;
-}
-
-// Define medical order type
-export interface MedicalOrder {
-  id: string;
-  type: 'exam' | 'surgery' | 'therapy' | 'consultation';
-  description: string;
-  specialty: string;
-  doctorName: string;
-  orderDate: string;
-  status: 'pending' | 'scheduled' | 'completed';
 }
 
 // Define user type
@@ -31,96 +21,299 @@ export interface User {
   avatarUrl?: string;
   profiles: UserProfile[];
   currentProfileId: string;
-  medicalOrders?: MedicalOrder[];
+  dni?: string;
+  telefono?: string;
+  direccion?: string;
+  nombreUsuario?: string;
 }
 
 // Define context type
 interface UserContextType {
   user: User | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  loading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  logout: () => Promise<void>;
   switchRole: (role: UserRole) => void;
   switchProfile: (profileId: string) => void;
   isRoleAllowed: (requiredRole: UserRole) => boolean;
+  clearError: () => void;
 }
 
 // Create context with default values
 const UserContext = createContext<UserContextType>({
   user: null,
   isAuthenticated: false,
-  login: async () => {},
-  logout: () => {},
+  loading: true,
+  error: null,
+  login: async () => false,
+  logout: async () => {},
   switchRole: () => {},
   switchProfile: () => {},
   isRoleAllowed: () => false,
+  clearError: () => {}
 });
-
-// Sample user data for demo
-const sampleUser: User = {
-  id: '1',
-  name: 'Juan Pérez',
-  email: 'juan.perez@example.com',
-  currentRole: 'patient',
-  roles: ['patient', 'admin', 'medical'],
-  avatarUrl: '../images/user.jpeg',
-  profiles: [
-    { id: '1', name: 'Juan Pérez', isCurrentUser: true },
-    { id: '2', name: 'Martina Pérez', isCurrentUser: false },
-    { id: '3', name: 'Mateo Pérez', isCurrentUser: false },
-  ],
-  currentProfileId: '1',
-  medicalOrders: [
-    {
-      id: '1',
-      type: 'exam',
-      description: 'Radiografía de tórax',
-      specialty: 'Radiología',
-      doctorName: 'Dr. María González',
-      orderDate: '2025-06-10',
-      status: 'pending'
-    },
-    {
-      id: '2',
-      type: 'therapy',
-      description: 'Terapia física - Rehabilitación de rodilla',
-      specialty: 'Medicina Física y Rehabilitación',
-      doctorName: 'Dr. Carlos Ruiz',
-      orderDate: '2025-06-08',
-      status: 'pending'
-    }
-  ]
-};
 
 export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // For demo purposes, auto-login with sample user
-  useEffect(() => {
-    // Comment this line to disable auto-login for production
-    setUser(sampleUser);
-    setIsAuthenticated(true);
-  }, []);
+  const clearError = () => setError(null);
 
-  const login = async () => {
-    // In a real app, this would make an API call to authenticate
+  // Función para obtener los roles del usuario
+  const getUserRoles = async (idPersona: number): Promise<UserRole[]> => {
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Always succeed for demo
-      setUser(sampleUser);
-      setIsAuthenticated(true);
+      const { data: rolesData, error } = await supabase
+        .from('asignacion_rol')
+        .select(`
+          rol:id_rol (
+            nombre
+          )
+        `)
+        .eq('id_persona', idPersona);
+
+      if (error) throw error;
+
+      const roles: UserRole[] = [];
+      rolesData?.forEach((roleAssignment: any) => {
+        const roleName = roleAssignment.rol?.nombre;
+        if (roleName === 'Paciente') roles.push('patient');
+        if (roleName === 'Asistente Administrativo') roles.push('admin');
+        if (roleName === 'Personal Médico' || roleName === 'Jefe de Servicio Médico') roles.push('medical');
+      });
+
+      // Validar que tenga al menos un rol
+      if (roles.length === 0) {
+        throw new Error('El usuario no tiene roles asignados. Contacte al administrador.');
+      }
+
+      return roles;
     } catch (error) {
-      console.error('Login failed:', error);
+      console.error('Error obteniendo roles:', error);
+      throw error; // Re-lanzamos el error para manejarlo en el contexto superior
+    }
+  };
+
+  // Función para obtener perfiles familiares
+  const getUserProfiles = async (personaId: string): Promise<UserProfile[]> => {
+    try {
+      const profiles: UserProfile[] = [];
+
+      // Obtener datos de la persona principal
+      const { data: personaData, error: personaError } = await supabase
+          .from('persona')
+          .select('id_persona, prenombres, primer_apellido, segundo_apellido')
+          .eq('id_persona', personaId)
+          .single();
+
+      if (personaError) throw personaError;
+
+      // Agregar perfil principal
+      profiles.push({
+        id: personaData.id_persona.toString(),
+        name: `${personaData.prenombres} ${personaData.primer_apellido} ${personaData.segundo_apellido}`,
+        isCurrentUser: true
+      });
+
+      // Obtener familiares relacionados
+      const { data: relacionesData, error: relacionesError } = await supabase
+          .from('relacion_personas')
+          .select(`
+          id_persona_2,
+          persona:id_persona_2 (
+            id_persona,
+            prenombres,
+            primer_apellido,
+            segundo_apellido
+          ),
+          tipo_relacion:id_tipo_relacion (
+            nombre
+          )
+        `)
+          .eq('id_persona_1', personaId)
+          .is('fecha_expiracion', null); // Solo relaciones activas
+
+      if (!relacionesError && relacionesData) {
+        relacionesData.forEach((relacion: any) => {
+          if (relacion.persona) {
+            profiles.push({
+              id: relacion.persona.id_persona.toString(),
+              name: `${relacion.persona.prenombres} ${relacion.persona.primer_apellido} ${relacion.persona.segundo_apellido}`,
+              isCurrentUser: false
+            });
+          }
+        });
+      }
+
+      return profiles;
+    } catch (error) {
+      console.error('Error obteniendo perfiles:', error);
+      return [];
+    }
+  };
+
+  // Función para construir el usuario desde los datos de Supabase
+  const buildUserFromSupabase = async (authUser: any): Promise<User> => {
+    try {
+      if (!authUser.user_metadata) {
+        throw new Error('Metadatos de usuario no encontrados');
+      }
+
+      let { id_persona, nombre_usuario } = authUser.user_metadata;
+
+      // Asignar valores alternativos si faltan
+      if (!id_persona) {
+        id_persona = authUser.user_metadata.persona_id;
+      }
+
+      if (!nombre_usuario) {
+        nombre_usuario = authUser.user_metadata.name;
+      }
+
+      if (!id_persona) {
+        throw new Error('ID de persona no encontrado en metadata');
+      }
+
+      if (!id_persona) {
+        throw new Error('ID de persona no encontrado en metadata');
+      }
+
+      // 1. Obtener datos de persona
+      const { data: personaData, error: personaError } = await supabase
+        .from('persona')
+        .select('*')
+        .eq('id_persona', id_persona)
+        .single();
+
+      if (personaError) throw personaError;
+      if (!personaData) throw new Error(`No se encontró persona con ID ${id_persona}`);
+
+      // 2. Obtener roles (puede lanzar error si no tiene roles)
+      const roles = await getUserRoles(id_persona);
+
+      // 3. Obtener perfiles
+      const profiles = await getUserProfiles(id_persona.toString());
+
+      return {
+        id: authUser.id,
+        name: `${personaData.prenombres || ''} ${personaData.primer_apellido || ''} ${personaData.segundo_apellido || ''}`.trim(),
+        email: authUser.email || '',
+        currentRole: roles[0], // Asignamos el primer rol disponible
+        roles,
+        profiles,
+        currentProfileId: id_persona.toString(),
+        dni: personaData.dni_idcarnet,
+        telefono: personaData.numero_celular_personal,
+        direccion: personaData.direccion_legal,
+        nombreUsuario: nombre_usuario || ''
+      };
+    } catch (error) {
+      console.error('Error en buildUserFromSupabase:', error);
       throw error;
     }
   };
 
-  const logout = () => {
-    setUser(null);
-    setIsAuthenticated(false);
+  // Verificar sesión al cargar
+  useEffect(() => {
+    const getSession = async () => {
+      try {
+        setLoading(true);
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (session?.user) {
+          try {
+            const userData = await buildUserFromSupabase(session.user);
+            setUser(userData);
+            setIsAuthenticated(true);
+            setError(null);
+          } catch (error) {
+            setError(error instanceof Error ? error.message : 'Error al cargar usuario');
+            await supabase.auth.signOut();
+          }
+        }
+      } catch (error) {
+        console.error('Error obteniendo sesión:', error);
+        setError('Error al verificar la sesión');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    getSession();
+
+    // Escuchar cambios en la autenticación
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setTimeout(async () => {
+        try {
+          setLoading(true);
+          if (event === 'SIGNED_IN' && session?.user) {
+            const userData = await buildUserFromSupabase(session.user);
+            setUser(userData);
+            setIsAuthenticated(true);
+            setError(null);
+          } else if (event === 'SIGNED_OUT') {
+            setUser(null);
+            setIsAuthenticated(false);
+            setError(null);
+          }
+        } catch (error) {
+          console.error('Error en auth state change:', error);
+          setError('Error en el proceso de autenticación');
+        } finally {
+          setLoading(false);
+        }
+      }, 0);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      if (data.user) {
+        try {
+          const userData = await buildUserFromSupabase(data.user);
+          setUser(userData);
+          setIsAuthenticated(true);
+          return true;
+        } catch (buildError) {
+          await supabase.auth.signOut();
+          throw buildError;
+        }
+      }
+      return false;
+    } catch (error: any) {
+      setError(error.message || 'Error al iniciar sesión');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      setUser(null);
+      setIsAuthenticated(false);
+      setError(null);
+    } catch (error) {
+      setError('Error al cerrar sesión');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const switchRole = (role: UserRole) => {
@@ -139,19 +332,22 @@ export const UserProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const isRoleAllowed = (requiredRole: UserRole): boolean => {
-    return user?.currentRole === requiredRole;
+    return user?.roles.includes(requiredRole) || false;
   };
 
   return (
-    <UserContext.Provider 
-      value={{ 
-        user, 
-        isAuthenticated, 
-        login, 
-        logout, 
-        switchRole, 
+    <UserContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        loading,
+        error,
+        login,
+        logout,
+        switchRole,
         switchProfile,
-        isRoleAllowed
+        isRoleAllowed,
+        clearError
       }}
     >
       {children}
